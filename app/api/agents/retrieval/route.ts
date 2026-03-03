@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { gemini } from "@/lib/llm/gemini";
+import { gemini, GEMINI_FLASH } from "@/lib/llm/gemini";
 import { supabaseStorage } from "@/lib/storage/supabase";
 
 const InputSchema = z.object({
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     const userPrompt = `User request: "${userMessage}"\n\nSelect the ${topK} most relevant ads from:\n${adList}`;
 
     const result = await gemini({
+      model: GEMINI_FLASH,
       system: SYSTEM_PROMPT,
       user: userPrompt,
       schema: LLMOutputSchema,

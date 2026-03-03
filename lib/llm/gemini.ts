@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 
-const GEMINI_MODEL = "gemini-3.1-pro-preview";
+export const GEMINI_PRO   = "gemini-3.1-pro-preview";
+export const GEMINI_FLASH = "gemini-3-flash-preview";
 
 function getClient() {
   const key = process.env.GEMINI_API_KEY;
@@ -39,12 +40,14 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
 }
 
 export async function gemini<T>(params: {
+  model?: string;
   system: string;
   user: string;
   schema: z.ZodType<T>;
 }): Promise<T>;
 
 export async function gemini(params: {
+  model?: string;
   system: string;
   user: string;
   schema?: undefined;
@@ -52,15 +55,17 @@ export async function gemini(params: {
 }): Promise<string>;
 
 export async function gemini<T>(params: {
+  model?: string;
   system: string;
   user: string;
   schema?: z.ZodType<T>;
   json?: boolean;
 }): Promise<T | string> {
-  const { system, user, schema, json } = params;
+  const { model = GEMINI_PRO, system, user, schema, json } = params;
   const ai = getClient();
 
   if (process.env.NODE_ENV === "development") {
+    console.error("[gemini] model:", model);
     console.error("[gemini] system:", system);
     console.error("[gemini] user:", user);
   }
@@ -75,7 +80,7 @@ export async function gemini<T>(params: {
 
   const response = await withRetry(() =>
     ai.models.generateContent({
-      model: GEMINI_MODEL,
+      model,
       contents: user,
       config,
     })

@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { BRAND_PROFILE } from "@/lib/brand";
-import { gemini } from "@/lib/llm/gemini";
+import { gemini, GEMINI_FLASH, GEMINI_PRO } from "@/lib/llm/gemini";
 import { nanoBanana } from "@/lib/llm/nano-banana";
 import { supabaseStorage } from "@/lib/storage/supabase";
 import { CampaignPlanSchema, type CampaignPlan } from "@/lib/schema/campaign-plan";
@@ -161,6 +161,7 @@ async function runVariant(
     const userPrompt = `User request: "${userMessage}"\n\nSelect the ${topK} most relevant ads from:\n${adList}`;
 
     const result = await gemini({
+      model: GEMINI_FLASH,
       system: RETRIEVAL_SYSTEM_PROMPT,
       user: userPrompt,
       schema: RetrievalOutputSchema,
@@ -197,7 +198,7 @@ Generate a complete ${style} campaign plan.`;
   let rawOutput = "";
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    rawOutput = await gemini({ system: systemPrompt, user: cdUserPrompt, json: true });
+    rawOutput = await gemini({ model: GEMINI_PRO, system: systemPrompt, user: cdUserPrompt, json: true });
     const parsed = CampaignPlanSchema.safeParse(JSON.parse(rawOutput));
     if (parsed.success) {
       campaignPlan = parsed.data;
@@ -284,6 +285,7 @@ export async function runPipeline(
     ambiguous = false;
   } else {
     const result = await gemini({
+      model: GEMINI_FLASH,
       system: ROUTER_SYSTEM_PROMPT,
       user: input.userMessage || "No description provided.",
       schema: RouterOutputSchema,

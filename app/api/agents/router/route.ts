@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { gemini } from "@/lib/llm/gemini";
+import { gemini, GEMINI_FLASH } from "@/lib/llm/gemini";
 
 const InputSchema = z.object({
   userMessage: z.string(),
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await gemini({
+      model: GEMINI_FLASH,
       system: SYSTEM_PROMPT,
       user: userMessage || "No description provided.",
       schema: LLMOutputSchema,
