@@ -27,10 +27,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, timeoutMs = 90_000): Promise<T> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await withTimeout(fn(), 90_000);
+      return await withTimeout(fn(), timeoutMs);
     } catch (err) {
       if (attempt === retries - 1 || !isRetryable(err)) throw err;
       await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
@@ -44,6 +44,7 @@ export async function gemini<T>(params: {
   system: string;
   user: string;
   schema: z.ZodType<T>;
+  timeoutMs?: number;
 }): Promise<T>;
 
 export async function gemini(params: {
@@ -52,6 +53,7 @@ export async function gemini(params: {
   user: string;
   schema?: undefined;
   json?: boolean;
+  timeoutMs?: number;
 }): Promise<string>;
 
 export async function gemini<T>(params: {
@@ -60,8 +62,9 @@ export async function gemini<T>(params: {
   user: string;
   schema?: z.ZodType<T>;
   json?: boolean;
+  timeoutMs?: number;
 }): Promise<T | string> {
-  const { model = GEMINI_PRO, system, user, schema, json } = params;
+  const { model = GEMINI_PRO, system, user, schema, json, timeoutMs } = params;
   const ai = getClient();
 
   if (process.env.NODE_ENV === "development") {
@@ -78,12 +81,10 @@ export async function gemini<T>(params: {
     config.responseMimeType = "application/json";
   }
 
-  const response = await withRetry(() =>
-    ai.models.generateContent({
-      model,
-      contents: user,
-      config,
-    })
+  const response = await withRetry(
+    () => ai.models.generateContent({ model, contents: user, config }),
+    3,
+    timeoutMs
   );
 
   const text = response.text ?? "";

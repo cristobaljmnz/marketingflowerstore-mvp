@@ -197,8 +197,33 @@ Generate a complete ${style} campaign plan.`;
   let campaignPlan: CampaignPlan | null = null;
   let rawOutput = "";
 
+  // Model cascade: try PRO (120s) first; fall back to FLASH (60s) on timeout
+  async function callCD(model: string, timeoutMs: number, prompt: string): Promise<string> {
+    return gemini({ model, system: systemPrompt, user: prompt, json: true, timeoutMs });
+  }
+
   for (let attempt = 0; attempt < 3; attempt++) {
-    rawOutput = await gemini({ model: GEMINI_PRO, system: systemPrompt, user: cdUserPrompt, json: true });
+    let modelUsed = GEMINI_PRO;
+    let timeoutUsed = 120_000;
+
+    try {
+      rawOutput = await callCD(GEMINI_PRO, 120_000, cdUserPrompt);
+    } catch (err) {
+      const msg = (err as Error).message ?? "";
+      if (msg.includes("timed out")) {
+        console.error("[creative-director] PRO timed out, falling back to FLASH");
+        modelUsed = GEMINI_FLASH;
+        timeoutUsed = 60_000;
+        rawOutput = await callCD(GEMINI_FLASH, 60_000, cdUserPrompt);
+      } else {
+        throw err;
+      }
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.error(`[creative-director] attempt ${attempt + 1}, model: ${modelUsed}, timeout: ${timeoutUsed}ms`);
+    }
+
     const parsed = CampaignPlanSchema.safeParse(JSON.parse(rawOutput));
     if (parsed.success) {
       campaignPlan = parsed.data;
