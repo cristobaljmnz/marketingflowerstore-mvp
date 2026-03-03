@@ -119,32 +119,27 @@ export default function GeneratePage() {
       const decoder = new TextDecoder();
       let buf = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
+      type SSEEvent = {
+        type: string;
+        step?: string;
+        status?: string;
+        style?: string;
+        data?: PipelineResult;
+        error?: string;
+      };
 
-        const parts = buf.split("\n\n");
-        buf = parts.pop() ?? "";
-
+      function processChunk(chunk: string) {
+        const parts = chunk.split("\n\n");
+        const remaining = parts.pop() ?? "";
         for (const part of parts) {
           for (const line of part.split("\n")) {
             if (!line.startsWith("data: ")) continue;
-
-            let ev: {
-              type: string;
-              step?: string;
-              status?: string;
-              style?: string;
-              data?: PipelineResult;
-              error?: string;
-            };
+            let ev: SSEEvent;
             try {
               ev = JSON.parse(line.slice(6));
             } catch {
               continue;
             }
-
             if (ev.type === "progress" && ev.step && ev.status) {
               upsertStep(ev.step, ev.status as StepRow["status"], ev.style);
             } else if (ev.type === "result" && ev.data) {
@@ -154,6 +149,18 @@ export default function GeneratePage() {
             }
           }
         }
+        return remaining;
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          // Flush any remaining buffered data before exiting
+          if (buf.trim()) processChunk(buf + "\n\n");
+          break;
+        }
+        buf += decoder.decode(value, { stream: true });
+        buf = processChunk(buf);
       }
 
       if (finalResult) {
