@@ -11,7 +11,7 @@ export const GeneratedCampaignSchema = z.object({
   captionOptions: z.array(z.string()),
   hashtags: z.array(z.string()),
   referenceIds: z.array(z.string()),
-  createdAt: z.string().datetime(),
+  createdAt: z.string().datetime({ offset: true }),
 });
 
 export type GeneratedCampaign = z.infer<typeof GeneratedCampaignSchema>;

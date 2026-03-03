@@ -6,7 +6,7 @@ export const HistoricalAdSchema = z.object({
   tag: z.enum(["studio", "street"]),
   title: z.string().optional(),
   description: z.string().optional(),
-  uploadedAt: z.string().datetime(),
+  uploadedAt: z.string().datetime({ offset: true }),
 });
 
 export type HistoricalAd = z.infer<typeof HistoricalAdSchema>;
