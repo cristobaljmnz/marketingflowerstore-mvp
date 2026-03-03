@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef } from "react";
+import gsap from "gsap";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -35,11 +35,43 @@ interface GeneratedCampaign {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function GalleryPage() {
-  const [campaigns, setCampaigns] = useState<GeneratedCampaign[]>([]);
-  const [filterStyle, setFilterStyle] = useState<FilterStyle>("all");
+  const [campaigns, setCampaigns]       = useState<GeneratedCampaign[]>([]);
+  const [filterStyle, setFilterStyle]   = useState<FilterStyle>("all");
   const [filterIntent, setFilterIntent] = useState<FilterIntent>("all");
-  const [isLoading, setIsLoading] = useState(true);
-  const [selected, setSelected] = useState<GeneratedCampaign | null>(null);
+  const [isLoading, setIsLoading]       = useState(true);
+  const [selected, setSelected]         = useState<GeneratedCampaign | null>(null);
+
+  const pageRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Entrance animation
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.from("[data-enter]", {
+        y: 20,
+        opacity: 0,
+        duration: 0.7,
+        ease: "power3.out",
+        stagger: 0.08,
+      });
+    }, pageRef);
+    return () => ctx.revert();
+  }, []);
+
+  // Grid animation
+  useEffect(() => {
+    if (isLoading || campaigns.length === 0) return;
+    const ctx = gsap.context(() => {
+      gsap.from("[data-campaign-card]", {
+        y: 24,
+        opacity: 0,
+        duration: 0.55,
+        ease: "power3.out",
+        stagger: 0.1,
+      });
+    }, gridRef);
+    return () => ctx.revert();
+  }, [campaigns, isLoading]);
 
   useEffect(() => {
     loadCampaigns();
@@ -56,61 +88,25 @@ export default function GalleryPage() {
     setIsLoading(false);
   }
 
-  async function downloadImage(url: string, filename: string) {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch {
-      window.open(url, "_blank");
-    }
-  }
-
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      {/* ── Header ── */}
-      <header
-        style={{
-          padding: "1.25rem 2rem",
-          borderBottom: "1px solid var(--rim)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "var(--surface)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: "1.5rem" }}>
-          <Link href="/generate" className="display" style={{ fontSize: "1rem", fontWeight: 300, letterSpacing: "0.04em", color: "var(--cream)", textDecoration: "none" }}>
-            flowerstore.ph
-          </Link>
-          <span style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.18em", color: "var(--copper)", fontWeight: 500 }}>
-            Gallery
-          </span>
-        </div>
-        <nav style={{ display: "flex", gap: "1.5rem" }}>
-          <Link href="/generate" style={{ fontSize: "0.72rem", color: "var(--faint)", textDecoration: "none" }}>Generate</Link>
-          <Link href="/library" style={{ fontSize: "0.72rem", color: "var(--faint)", textDecoration: "none" }}>Library</Link>
-        </nav>
-      </header>
+    <div ref={pageRef} style={{ minHeight: "100dvh", background: "var(--bg)", paddingTop: "var(--nav-offset)" }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2.5rem 2rem 4rem" }}>
 
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2.5rem 2rem" }}>
+        {/* ── Page heading ── */}
+        <div data-enter style={{ marginBottom: "2.5rem" }}>
+          <h1
+            className="display"
+            style={{ fontSize: "2.5rem", fontWeight: 400, fontStyle: "italic", color: "var(--cream)", margin: 0, lineHeight: 1.1 }}
+          >
+            Campaign Gallery
+          </h1>
+          <p style={{ fontSize: "0.78rem", color: "var(--faint)", marginTop: "0.4rem", fontFamily: "'Outfit', sans-serif" }}>
+            All generated campaigns — browse, download, and reuse
+          </p>
+        </div>
+
         {/* ── Filter bar ── */}
-        <div
-          style={{
-            display: "flex",
-            gap: "2rem",
-            marginBottom: "2.5rem",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+        <div data-enter style={{ display: "flex", gap: "2rem", marginBottom: "2.5rem", alignItems: "center", flexWrap: "wrap" }}>
           <FilterGroup
             label="Style"
             options={["all", "studio", "street"] as FilterStyle[]}
@@ -124,7 +120,7 @@ export default function GalleryPage() {
             onChange={(v) => setFilterIntent(v as FilterIntent)}
           />
           {!isLoading && (
-            <span style={{ fontSize: "0.72rem", color: "var(--ghost)", marginLeft: "auto" }}>
+            <span style={{ fontSize: "0.72rem", color: "var(--ghost)", marginLeft: "auto", fontFamily: "'Outfit', sans-serif" }}>
               {campaigns.length} campaign{campaigns.length !== 1 ? "s" : ""}
             </span>
           )}
@@ -132,33 +128,33 @@ export default function GalleryPage() {
 
         {/* ── Grid ── */}
         {isLoading ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "1.25rem",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.25rem" }}>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton" style={{ aspectRatio: "1", borderRadius: "6px" }} />
+              <div key={i} className="skeleton" style={{ aspectRatio: "4/5", borderRadius: "var(--r-md)" }} />
             ))}
           </div>
         ) : campaigns.length === 0 ? (
           <div style={{ textAlign: "center", padding: "6rem 2rem" }}>
-            <p className="display" style={{ fontSize: "1.5rem", fontWeight: 300, fontStyle: "italic", opacity: 0.25, marginBottom: "1rem" }}>
+            <p className="display" style={{ fontSize: "2rem", fontWeight: 300, fontStyle: "italic", color: "var(--ghost)", marginBottom: "1rem" }}>
               No campaigns yet
             </p>
-            <Link href="/generate" style={{ fontSize: "0.8rem", color: "var(--copper)", textDecoration: "none" }}>
+            <a
+              href="/generate"
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--brand)",
+                textDecoration: "none",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 500,
+              }}
+            >
               Generate your first campaign →
-            </Link>
+            </a>
           </div>
         ) : (
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "1.25rem",
-            }}
+            ref={gridRef}
+            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.25rem" }}
           >
             {campaigns.map((c) => (
               <CampaignCard key={c.id} campaign={c} onClick={() => setSelected(c)} />
@@ -167,260 +163,229 @@ export default function GalleryPage() {
         )}
       </div>
 
-      {/* ── Expanded modal ── */}
+      {/* ── Modal ── */}
       {selected && (
-        <div
-          onClick={() => setSelected(null)}
+        <CampaignModal campaign={selected} onClose={() => setSelected(null)} />
+      )}
+    </div>
+  );
+}
+
+// ── Carousel ──────────────────────────────────────────────────────────────────
+
+function ImageCarousel({
+  urls,
+  aspectRatio = "1",
+  compact = false,
+}: {
+  urls: string[];
+  aspectRatio?: string;
+  compact?: boolean;
+}) {
+  const [idx, setIdx] = useState(0);
+  const len = urls.length;
+  if (len === 0) return null;
+
+  const prev = () => setIdx((i) => (i - 1 + len) % len);
+  const next = () => setIdx((i) => (i + 1) % len);
+
+  async function download() {
+    const url = urls[idx];
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `campaign-image-${idx + 1}.jpg`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(url, "_blank");
+    }
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      {/* Main image */}
+      <div style={{ position: "relative", overflow: "hidden", borderRadius: compact ? "0" : "var(--r-md) var(--r-md) 0 0" }}>
+        <img
+          key={idx}
+          src={urls[idx]}
+          alt={`Image ${idx + 1}`}
           style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(12,10,8,0.9)",
+            width: "100%",
+            aspectRatio,
+            objectFit: "cover",
+            display: "block",
+            animation: "fadeUp 0.25s ease both",
+          }}
+        />
+
+        {/* Prev / Next buttons */}
+        {len > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); prev(); }}
+              style={{
+                position: "absolute",
+                left: "0.625rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "2rem",
+                height: "2rem",
+                borderRadius: "50%",
+                background: "rgba(255,248,245,0.85)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid var(--rim2)",
+                color: "var(--cream)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                transition: "transform 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.18s",
+                zIndex: 2,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-50%) scale(1.1)"; e.currentTarget.style.background = "rgba(255,248,245,0.95)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(-50%) scale(1)"; e.currentTarget.style.background = "rgba(255,248,245,0.85)"; }}
+            >
+              ‹
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); next(); }}
+              style={{
+                position: "absolute",
+                right: "0.625rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "2rem",
+                height: "2rem",
+                borderRadius: "50%",
+                background: "rgba(255,248,245,0.85)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid var(--rim2)",
+                color: "var(--cream)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                transition: "transform 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.18s",
+                zIndex: 2,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-50%) scale(1.1)"; e.currentTarget.style.background = "rgba(255,248,245,0.95)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(-50%) scale(1)"; e.currentTarget.style.background = "rgba(255,248,245,0.85)"; }}
+            >
+              ›
+            </button>
+          </>
+        )}
+
+        {/* Download button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); download(); }}
+          style={{
+            position: "absolute",
+            top: "0.625rem",
+            right: "0.625rem",
+            padding: "0.35rem 0.75rem",
+            borderRadius: "var(--r-lg)",
+            background: "rgba(255,248,245,0.85)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid var(--rim2)",
+            color: "var(--cream)",
+            cursor: "pointer",
+            fontSize: "0.65rem",
+            fontWeight: 600,
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
+            gap: "0.3rem",
+            transition: "transform 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+            zIndex: 2,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.05)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+        >
+          ↓ Download
+        </button>
+      </div>
+
+      {/* Dots */}
+      {len > 1 && (
+        <div
+          style={{
+            display: "flex",
             justifyContent: "center",
-            zIndex: 100,
-            padding: "2rem",
-            overflowY: "auto",
+            gap: "0.375rem",
+            padding: "0.625rem 0 0.25rem",
+            background: "var(--card)",
           }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "var(--card)",
-              border: "1px solid var(--rim2)",
-              borderRadius: "8px",
-              overflow: "hidden",
-              maxWidth: "700px",
-              width: "100%",
-              marginTop: "2rem",
-              marginBottom: "2rem",
-            }}
-          >
-            {/* Images */}
-            {selected.generatedImageUrls.length > 0 && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${Math.min(selected.generatedImageUrls.length, 3)}, 1fr)`,
-                  gap: "1px",
-                  background: "var(--rim)",
-                }}
-              >
-                {selected.generatedImageUrls.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Generated ad ${i + 1}`}
-                    style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
-                  />
-                ))}
-              </div>
-            )}
-
-            <div style={{ padding: "1.75rem" }}>
-              {/* Title + badges */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "1.5rem" }}>
-                <h2 className="display" style={{ fontSize: "1.75rem", fontWeight: 400, lineHeight: 1.2, margin: 0 }}>
-                  {selected.campaignPlan.campaignTitle}
-                </h2>
-                <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0, marginTop: "0.3rem" }}>
-                  <Badge type={selected.style} />
-                  <Badge type={selected.intent} />
-                </div>
-              </div>
-
-              {/* All captions */}
-              <ModalSection label="Captions">
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {selected.captionOptions.map((c, i) => (
-                    <div key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                      <span style={{ fontSize: "0.65rem", color: "var(--ghost)", paddingTop: "0.3rem", flexShrink: 0 }}>
-                        {i + 1}.
-                      </span>
-                      <p style={{ fontSize: "0.875rem", color: "var(--muted)", lineHeight: 1.65, margin: 0 }}>
-                        {c}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </ModalSection>
-
-              {/* Hashtags */}
-              <ModalSection label="Hashtags">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                  {selected.hashtags.map((tag) => (
-                    <span
-                      key={tag}
-                      style={{
-                        fontSize: "0.72rem",
-                        color: "var(--copper-l)",
-                        background: "var(--card2)",
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: "3px",
-                      }}
-                    >
-                      {tag.startsWith("#") ? tag : `#${tag}`}
-                    </span>
-                  ))}
-                </div>
-              </ModalSection>
-
-              {/* Product image + references */}
-              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
-                <div>
-                  <ModalLabel>Product</ModalLabel>
-                  <img
-                    src={selected.productImageUrl}
-                    alt="Product"
-                    style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "4px", border: "1px solid var(--rim)" }}
-                  />
-                </div>
-                {selected.referenceIds.length > 0 && (
-                  <div>
-                    <ModalLabel>References</ModalLabel>
-                    <p style={{ fontSize: "0.72rem", color: "var(--ghost)", lineHeight: 1.8 }}>
-                      {selected.referenceIds.join(", ")}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Date */}
-              <p style={{ fontSize: "0.65rem", color: "var(--ghost)", marginBottom: "1.5rem" }}>
-                Generated {new Date(selected.createdAt).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
-              </p>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                {selected.generatedImageUrls.map((url, i) => (
-                  <button
-                    key={i}
-                    onClick={() => downloadImage(url, `campaign-${selected.id}-${i + 1}.jpg`)}
-                    style={{
-                      padding: "0.6rem 1.1rem",
-                      background: "var(--copper)",
-                      color: "var(--bg)",
-                      border: "none",
-                      borderRadius: "4px",
-                      fontSize: "0.78rem",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
-                    Download {selected.generatedImageUrls.length > 1 ? `Image ${i + 1}` : "Image"}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setSelected(null)}
-                  style={{
-                    padding: "0.6rem 1.1rem",
-                    background: "transparent",
-                    color: "var(--faint)",
-                    border: "1px solid var(--rim)",
-                    borderRadius: "4px",
-                    fontSize: "0.78rem",
-                    cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
+          {Array.from({ length: len }).map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+              style={{
+                width: i === idx ? "1.25rem" : "0.375rem",
+                height: "0.375rem",
+                borderRadius: "var(--r-lg)",
+                background: i === idx ? "var(--brand)" : "var(--rim2)",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                transition: "width 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.25s",
+              }}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+// ── Campaign card ─────────────────────────────────────────────────────────────
 
-function FilterGroup<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: T[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-      <span style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--faint)" }}>
-        {label}
-      </span>
-      <div style={{ display: "flex", gap: "0.25rem" }}>
-        {options.map((opt) => (
-          <button
-            key={opt}
-            onClick={() => onChange(opt)}
-            style={{
-              padding: "0.3rem 0.75rem",
-              background: value === opt ? "var(--card2)" : "transparent",
-              border: `1px solid ${value === opt ? "var(--rim2)" : "transparent"}`,
-              borderRadius: "4px",
-              color: value === opt ? "var(--cream)" : "var(--faint)",
-              fontSize: "0.75rem",
-              cursor: "pointer",
-              fontFamily: "'DM Sans', sans-serif",
-              transition: "all 0.15s",
-            }}
-          >
-            {opt.charAt(0).toUpperCase() + opt.slice(1)}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CampaignCard({
-  campaign,
-  onClick,
-}: {
-  campaign: GeneratedCampaign;
-  onClick: () => void;
-}) {
+function CampaignCard({ campaign, onClick }: { campaign: GeneratedCampaign; onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
-  const firstImage = campaign.generatedImageUrls[0];
   const caption = campaign.captionOptions[0] ?? "";
 
   return (
     <div
+      data-campaign-card
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         background: "var(--card)",
-        borderRadius: "6px",
+        borderRadius: "var(--r-md)",
         overflow: "hidden",
         border: "1px solid var(--rim)",
         cursor: "pointer",
-        transform: hovered ? "translateY(-3px)" : "none",
-        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.5)" : "none",
-        transition: "transform 0.18s, box-shadow 0.18s",
+        transform: hovered ? "translateY(-5px) scale(1.01)" : "none",
+        boxShadow: hovered
+          ? "0 16px 48px rgba(226,83,73,0.12)"
+          : "0 2px 12px rgba(226,83,73,0.04)",
+        transition: "transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
       }}
     >
-      {firstImage && (
-        <img
-          src={firstImage}
-          alt={campaign.campaignPlan.campaignTitle}
-          style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
-        />
-      )}
-      <div style={{ padding: "1rem" }}>
+      {/* Carousel */}
+      <ImageCarousel urls={campaign.generatedImageUrls} aspectRatio="1" />
+
+      {/* Info */}
+      <div style={{ padding: "1.125rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.75rem" }}>
           <h3
             className="display"
             style={{
               fontSize: "1.1rem",
               fontWeight: 400,
+              fontStyle: "italic",
               lineHeight: 1.3,
               margin: 0,
+              color: "var(--cream)",
               overflow: "hidden",
               display: "-webkit-box",
               WebkitLineClamp: 2,
@@ -429,7 +394,7 @@ function CampaignCard({
           >
             {campaign.campaignPlan.campaignTitle}
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flexShrink: 0 }}>
             <Badge type={campaign.style} />
             <Badge type={campaign.intent} />
           </div>
@@ -440,12 +405,13 @@ function CampaignCard({
             style={{
               fontSize: "0.78rem",
               color: "var(--faint)",
-              lineHeight: 1.5,
+              lineHeight: 1.55,
               margin: "0 0 0.75rem",
               overflow: "hidden",
               display: "-webkit-box",
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
             }}
           >
             {caption}
@@ -458,17 +424,18 @@ function CampaignCard({
               key={tag}
               style={{
                 fontSize: "0.65rem",
-                color: "var(--copper)",
-                background: "var(--card2)",
-                padding: "0.15rem 0.4rem",
-                borderRadius: "3px",
+                color: "var(--brand)",
+                background: "rgba(226,83,73,0.07)",
+                padding: "0.15rem 0.5rem",
+                borderRadius: "var(--r-lg)",
+                fontFamily: "'Outfit', sans-serif",
               }}
             >
               {tag.startsWith("#") ? tag : `#${tag}`}
             </span>
           ))}
           {campaign.hashtags.length > 4 && (
-            <span style={{ fontSize: "0.65rem", color: "var(--ghost)" }}>
+            <span style={{ fontSize: "0.65rem", color: "var(--ghost)", fontFamily: "'Outfit', sans-serif" }}>
               +{campaign.hashtags.length - 4}
             </span>
           )}
@@ -478,26 +445,218 @@ function CampaignCard({
   );
 }
 
+// ── Campaign modal ────────────────────────────────────────────────────────────
+
+function CampaignModal({ campaign, onClose }: { campaign: GeneratedCampaign; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(255,248,245,0.85)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        zIndex: 200,
+        padding: "2rem",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--card)",
+          border: "1px solid var(--rim2)",
+          borderRadius: "var(--r-md)",
+          overflow: "hidden",
+          maxWidth: "720px",
+          width: "100%",
+          marginTop: "2rem",
+          marginBottom: "2rem",
+          boxShadow: "0 32px 100px rgba(226,83,73,0.10)",
+          animation: "fadeUp 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both",
+        }}
+      >
+        {/* Carousel in modal */}
+        <ImageCarousel urls={campaign.generatedImageUrls} aspectRatio="1" />
+
+        <div style={{ padding: "2rem" }}>
+          {/* Title + badges */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "1.5rem" }}>
+            <h2
+              className="display"
+              style={{ fontSize: "2rem", fontWeight: 400, fontStyle: "italic", lineHeight: 1.2, margin: 0, color: "var(--cream)" }}
+            >
+              {campaign.campaignPlan.campaignTitle}
+            </h2>
+            <div style={{ display: "flex", gap: "0.375rem", flexShrink: 0, marginTop: "0.4rem" }}>
+              <Badge type={campaign.style} />
+              <Badge type={campaign.intent} />
+            </div>
+          </div>
+
+          {/* Captions */}
+          <ModalSection label="Captions">
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+              {campaign.captionOptions.map((c, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: "0.875rem",
+                    padding: "0.875rem 1rem",
+                    background: "var(--surface)",
+                    borderRadius: "var(--r-sm)",
+                  }}
+                >
+                  <span style={{ fontSize: "0.65rem", color: "var(--ghost)", paddingTop: "0.25rem", flexShrink: 0, fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <p style={{ fontSize: "0.875rem", color: "var(--muted)", lineHeight: 1.65, margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {c}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </ModalSection>
+
+          {/* Hashtags */}
+          <ModalSection label="Hashtags">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+              {campaign.hashtags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--brand)",
+                    background: "rgba(226,83,73,0.07)",
+                    padding: "0.25rem 0.625rem",
+                    borderRadius: "var(--r-lg)",
+                    fontFamily: "'Outfit', sans-serif",
+                  }}
+                >
+                  {tag.startsWith("#") ? tag : `#${tag}`}
+                </span>
+              ))}
+            </div>
+          </ModalSection>
+
+          {/* Meta row */}
+          <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
+            <div>
+              <ModalLabel>Product</ModalLabel>
+              <img
+                src={campaign.productImageUrl}
+                alt="Product"
+                style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "var(--r-sm)", border: "1px solid var(--rim)" }}
+              />
+            </div>
+            {campaign.referenceIds.length > 0 && (
+              <div>
+                <ModalLabel>References</ModalLabel>
+                <p className="mono" style={{ fontSize: "0.7rem", color: "var(--ghost)", lineHeight: 1.8 }}>
+                  {campaign.referenceIds.join(", ")}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Date */}
+          <p style={{ fontSize: "0.65rem", color: "var(--ghost)", marginBottom: "1.5rem", fontFamily: "'Outfit', sans-serif" }}>
+            Generated {new Date(campaign.createdAt).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
+          </p>
+
+          {/* Close */}
+          <button
+            onClick={onClose}
+            className="btn"
+            style={{
+              padding: "0.65rem 1.5rem",
+              background: "transparent",
+              color: "var(--faint)",
+              border: "1px solid var(--rim2)",
+              borderRadius: "var(--r-md)",
+              fontSize: "0.82rem",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shared sub-components ─────────────────────────────────────────────────────
+
+function FilterGroup<T extends string>({
+  label, options, value, onChange,
+}: {
+  label: string;
+  options: T[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <span style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--faint)", fontFamily: "'Outfit', sans-serif" }}>
+        {label}
+      </span>
+      <div style={{ display: "flex", gap: "0.25rem" }}>
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onChange(opt)}
+            className="btn"
+            style={{
+              padding: "0.35rem 0.875rem",
+              background: value === opt ? "var(--brand)" : "var(--card)",
+              border: `1px solid ${value === opt ? "var(--brand)" : "var(--rim2)"}`,
+              borderRadius: "var(--r-lg)",
+              color: value === opt ? "#fff" : "var(--faint)",
+              fontSize: "0.75rem",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontWeight: value === opt ? 600 : 400,
+              boxShadow: value === opt ? "0 2px 10px rgba(226,83,73,0.2)" : "none",
+            }}
+          >
+            <span className="btn-slide" style={{ background: "var(--brand-l)" }} />
+            <span style={{ position: "relative", zIndex: 1 }}>
+              {opt.charAt(0).toUpperCase() + opt.slice(1)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Badge({ type }: { type: string }) {
   const configs: Record<string, { bg: string; color: string }> = {
-    studio:    { bg: "#2A1E14", color: "#C4845A" },
-    street:    { bg: "#141E16", color: "#688F6E" },
-    promo:     { bg: "#2A1E14", color: "#C4845A" },
-    emotional: { bg: "#14181E", color: "#5A7E9E" },
+    studio:    { bg: "rgba(226,83,73,0.08)",  color: "#C04040" },
+    street:    { bg: "rgba(107,158,120,0.12)", color: "#3D6B4A" },
+    promo:     { bg: "rgba(226,83,73,0.08)",  color: "#C04040" },
+    emotional: { bg: "rgba(90,120,160,0.10)", color: "#3D5A80" },
   };
-  const c = configs[type] ?? { bg: "var(--card2)", color: "var(--muted)" };
+  const c = configs[type] ?? { bg: "var(--surface)", color: "var(--muted)" };
   return (
     <span
       style={{
         display: "inline-block",
         fontSize: "0.6rem",
-        fontWeight: 500,
-        padding: "0.15rem 0.45rem",
-        borderRadius: "3px",
+        fontWeight: 600,
+        padding: "0.2rem 0.6rem",
+        borderRadius: "var(--r-lg)",
         textTransform: "uppercase",
         letterSpacing: "0.08em",
         background: c.bg,
         color: c.color,
+        fontFamily: "'Outfit', sans-serif",
       }}
     >
       {type}
@@ -516,7 +675,7 @@ function ModalSection({ label, children }: { label: string; children: React.Reac
 
 function ModalLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--faint)", marginBottom: "0.6rem" }}>
+    <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--faint)", marginBottom: "0.6rem", fontFamily: "'Outfit', sans-serif" }}>
       {children}
     </div>
   );
