@@ -90,6 +90,14 @@ ${style.toUpperCase()} RULES
 Must: ${rules.must.join("; ")}.
 Must NOT: ${rules.mustNot.join("; ")}.
 
+CRITICAL — PRODUCT FIDELITY (applies to every imageBasePrompt you write)
+The product image provided is the EXACT item being promoted.
+- DO NOT change the flowers: not their color, variety, count, or arrangement.
+- DO NOT change the wrapping paper or ribbon: not their color, texture, or pattern.
+- DO NOT idealize, substitute, or reimagine the product in any way.
+- You MAY describe premium environmental effects around the bouquet: soft bokeh, luxury lighting, delicate light rays, subtle glow — as long as these effects do not alter the product itself.
+- Every imageBasePrompt must explicitly instruct the image model to "reproduce the product exactly as shown in the reference photo".
+
 Produce a complete ad campaign plan as valid JSON matching this exact schema:
 {
   "style": "${style}",
@@ -245,10 +253,18 @@ Generate a complete ${style} campaign plan.`;
   // Step: image-generation (sequential per prompt)
   emit("image-generation", "running");
 
+  const FIDELITY_PREFIX =
+    "IMPORTANT: The reference image shows the exact product to feature. " +
+    "Reproduce it faithfully — preserve all flower colors, wrapping paper colors, " +
+    "textures, and arrangement exactly as shown in the reference photo. " +
+    "Do not alter, idealize, recolor, or substitute any part of the product. " +
+    "You may add premium lighting effects, soft bokeh, or a subtle glow to enhance " +
+    "the mood, but the product itself must match the reference photo precisely. ";
+
   const generatedImageUrls: string[] = [];
   for (const prompt of campaignPlan.imageBasePrompts) {
     const { imageUrl: dataUrl } = await nanoBanana({
-      prompt,
+      prompt: FIDELITY_PREFIX + prompt,
       referenceImageUrl: productImageUrl,
     });
     const { buffer, mimeType } = dataUrlToBuffer(dataUrl);
