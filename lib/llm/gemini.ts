@@ -17,10 +17,19 @@ function isRetryable(err: unknown): boolean {
   return msg.includes("429") || msg.includes("rate limit") || msg.includes("503");
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini request timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await fn();
+      return await withTimeout(fn(), 90_000);
     } catch (err) {
       if (attempt === retries - 1 || !isRetryable(err)) throw err;
       await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
