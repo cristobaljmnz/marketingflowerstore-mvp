@@ -51,8 +51,7 @@ lib/
     nano-banana.ts  → Nano Banana Pro client wrapper
   storage/
     adapter.ts      → storage interface
-    vercel-blob.ts  → Vercel Blob implementation
-    vercel-kv.ts    → Vercel KV implementation (record persistence)
+    supabase.ts     → Supabase implementation (images + records)
   schema/
     historical-ad.ts
     campaign-plan.ts
@@ -71,18 +70,17 @@ Define and document all required env vars. No defaults — fail loudly if missin
 
 | Variable | Purpose |
 |---|---|
-| `GEMINI_API_KEY` | Gemini 3.1 Pro — Router, Retrieval, Creative Director agents |
-| `NANO_BANANA_API_KEY` | Nano Banana Pro — Image Generator tool |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob — image storage |
-| `KV_REST_API_URL` | Vercel KV — record persistence |
-| `KV_REST_API_TOKEN` | Vercel KV — record persistence |
+| `GEMINI_API_KEY` | Gemini 3.1 Pro — Router, Retrieval, Creative Director agents + Nano Banana Pro image generation |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key — safe for client-side reads |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key — server-side writes only |
 
 ### 0.4 Vercel Deployment
 
 - Connect repository to Vercel project
 - Set all env vars in the Vercel dashboard (not committed to repo)
 - Confirm auto-deploy on push to `main`
-- Confirm Vercel Blob and Vercel KV are provisioned and linked
+- Confirm Supabase project is provisioned and reachable from Vercel
 
 ---
 
@@ -97,7 +95,7 @@ Represents one ad in the `/library`.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `string` (UUID) | Generated on upload |
-| `imageUrl` | `string` | Vercel Blob URL |
+| `imageUrl` | `string` | Supabase Storage public URL |
 | `tag` | `"studio" \| "street"` | Required; user-assigned or auto-suggested |
 | `title` | `string` (optional) | Human-assigned label |
 | `description` | `string` (optional) | Human-assigned notes |
@@ -141,16 +139,27 @@ Persisted record in the `/gallery`.
 
 ## Phase 2 — Storage Layer
 
-### 2.1 Image Storage — Vercel Blob
+All storage goes through **Supabase** — one service for both images and structured records.
 
-All images (product uploads, historical ads, generated images) are stored in Vercel Blob.
+### 2.1 Image Storage — Supabase Storage
+
+All images (product uploads, historical ads, generated images) are stored in Supabase Storage buckets.
+
+Buckets:
+- `product-uploads` — temporary product images uploaded at generation time
+- `historical-ads` — images from the `/library`
+- `generated-campaigns` — images produced by the Image Generator
 
 Operations required:
-- `uploadImage(file: File | Buffer, filename: string) → string` — returns public URL
+- `uploadImage(bucket: string, file: File | Buffer, filename: string) → string` — returns public URL
 
-### 2.2 Record Persistence — Vercel KV
+### 2.2 Record Persistence — Supabase Database
 
-All structured records (HistoricalAd, GeneratedCampaign) are stored in Vercel KV as JSON.
+All structured records (HistoricalAd, GeneratedCampaign) are stored in Supabase PostgreSQL tables.
+
+Tables:
+- `historical_ads` — columns matching the HistoricalAd model
+- `generated_campaigns` — columns matching the GeneratedCampaign model; `campaign_plan` stored as JSONB
 
 Operations required:
 - `saveHistoricalAd(ad: HistoricalAd) → void`
@@ -161,7 +170,7 @@ Operations required:
 
 ### 2.3 Storage Adapter Interface
 
-Wrap operations behind a storage interface defined in `lib/storage/adapter.ts`. This allows the KV and Blob implementations to be swapped without touching agent or route code.
+Wrap all operations behind a storage interface defined in `lib/storage/adapter.ts`. This allows the Supabase implementation to be swapped without touching agent or route code.
 
 ---
 
@@ -179,6 +188,7 @@ Build typed wrappers before implementing any agents. Agents must never call LLM 
 
 ### 3.2 Nano Banana Pro Client (`lib/llm/nano-banana.ts`)
 
+- Nano Banana Pro is a Gemini model — uses the same `GEMINI_API_KEY`
 - Accept: `{ prompt: string, referenceImageUrl?: string }`
 - Return: `{ imageUrl: string }`
 - This is a **tool**, not an agent — no system prompt, no reasoning
@@ -243,7 +253,7 @@ Each route:
 ```
 
 **Logic:**
-- Load all HistoricalAds from storage filtered by `style`.
+- Load all HistoricalAds from Supabase filtered by `style`.
 - If the library has fewer than 3 ads for the selected style: return all available with a warning.
 - Call Gemini 3.1 Pro:
   - Provide the user message.
@@ -317,7 +327,7 @@ Each route:
 ```
 
 **Logic:**
-- Call Nano Banana Pro with the prompt
+- Call Nano Banana Pro (Gemini model, same `GEMINI_API_KEY`) with the prompt
 - Pass `productImageUrl` as a reference image where the API supports it
 - Return the generated image URL
 
@@ -348,7 +358,7 @@ Each route:
 **Logic:**
 - Assemble a `GeneratedCampaign` record from all inputs
 - Assign a UUID and `createdAt` timestamp
-- Persist to Vercel KV via the storage adapter
+- Persist to Supabase via the storage adapter
 - Return the saved campaign ID
 
 **Output:**
@@ -366,7 +376,7 @@ Define a single server-side pipeline function (`lib/pipeline/generate.ts`) that 
 
 ### 5.1 Pipeline Steps
 
-1. **Upload product image** — call Vercel Blob upload, receive `productImageUrl`
+1. **Upload product image** — upload to Supabase Storage, receive `productImageUrl`
 2. **Router Agent** — POST to `/api/agents/router` with `userMessage` and `styleSelector`
    - Receive `style`, `confidence`, `ambiguous`
 3. **Style fork check** — if `ambiguous: true` AND `styleSelector === "auto"`:
@@ -500,11 +510,11 @@ Apply the `frontend-design` skill from `.agents/skills/frontend-design/` to all 
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/upload` | POST | Upload a product image; return Blob URL |
-| `/api/library/upload` | POST | Upload historical ad image(s) with tags; persist HistoricalAd records |
-| `/api/library` | GET | Return all historical ads; accepts `?tag=studio\|street` query param |
+| `/api/upload` | POST | Upload a product image to Supabase Storage; return public URL |
+| `/api/library/upload` | POST | Upload historical ad image(s) with tags; persist HistoricalAd records to Supabase |
+| `/api/library` | GET | Return all historical ads from Supabase; accepts `?tag=studio\|street` query param |
 | `/api/pipeline/generate` | POST | Orchestrate full pipeline; stream progress events |
-| `/api/gallery` | GET | Return all generated campaigns; accepts `?style=&intent=` query params |
+| `/api/gallery` | GET | Return all generated campaigns from Supabase; accepts `?style=&intent=` query params |
 
 ---
 
@@ -529,7 +539,7 @@ These features are deferred. The MVP data models and agent outputs already inclu
 
 ### 8.3 Vector-Based Retrieval
 
-- On historical ad upload: generate an embedding of the ad's metadata using Gemini embeddings API; store in Vercel KV
+- On historical ad upload: generate an embedding of the ad's metadata using Gemini embeddings API; store as a vector column in Supabase (pgvector)
 - Replace LLM-based selection in the Retrieval Agent with cosine similarity over stored embeddings
 - API contract is unchanged — the Retrieval Agent still returns `{ retrievedAds: [{ id, summary }] }`
 - **Preparation done in MVP:** Retrieval Agent is isolated behind its own route; swapping the internal implementation requires no changes to callers
@@ -542,7 +552,7 @@ These features are deferred. The MVP data models and agent outputs already inclu
 ### 8.5 Tag Suggestion with Vision Input
 
 - Pass the uploaded image (not just `userMessage`) to the Router Agent during library upload
-- Requires Gemini 3.1 Pro vision input support
+- Requires Gemini vision input support
 - More accurate tag suggestions for abstract or ambiguous images
 
 ### 8.6 Authentication
@@ -557,8 +567,8 @@ These features are deferred. The MVP data models and agent outputs already inclu
 ### Assumptions
 
 1. **~50 historical ads** is small enough that LLM-based semantic retrieval (no vector embeddings) is fast and accurate enough for MVP. This breaks down above ~200 ads.
-2. **Nano Banana Pro** supports image reference input — the product image can be passed alongside the generation prompt to guide visual output.
-3. **Vercel Blob + Vercel KV** are sufficient for MVP-scale storage and are straightforward to provision on Vercel.
+2. **Nano Banana Pro** is a Gemini model and uses the same `GEMINI_API_KEY` — no separate API credential needed.
+3. **Supabase** free tier is sufficient for MVP-scale storage and database usage.
 4. **Brand profile is hardcoded** for MVP. flowerstore.ph's creative rules are defined as constants in the Creative Director system prompt, not in a database. This is intentional — brand rules change rarely and keeping them in code ensures they are always applied.
 5. **No authentication** is needed for the prototype. The tool is internal and single-tenant.
 6. **Text baked into images** is acceptable for MVP. The Creative Director still outputs `textOverlays` in the CampaignPlan, which preserves the post-MVP rendering path.
@@ -568,9 +578,9 @@ These features are deferred. The MVP data models and agent outputs already inclu
 
 | Decision | Accepted Risk | Mitigation |
 |---|---|---|
-| LLM retrieval (no embeddings) | Inaccurate results beyond ~200 ads | Retrieval Agent is isolated; swap to vector search without touching other code |
+| LLM retrieval (no embeddings) | Inaccurate results beyond ~200 ads | Retrieval Agent is isolated; swap to pgvector without touching other code |
 | Sequential image generation | Slower pipeline for multi-deliverable campaigns | `Promise.all` is a one-line change when needed |
-| Vercel KV as database | Not suitable for complex queries or scale | Zod schemas are defined; migration to Postgres is mechanical |
+| Supabase as sole storage provider | Single point of dependency | Free tier is generous; Supabase is production-grade and widely used |
 | No auth on prototype | Any user with the URL can access the tool | Add middleware before sharing externally |
 | No streaming agent responses | User waits for full step before seeing output | SSE progress events communicate step status; acceptable UX for a prototype |
 | Hardcoded brand profile | Cannot update brand rules without a deploy | Acceptable for MVP; externalize to DB in production |
@@ -579,21 +589,22 @@ These features are deferred. The MVP data models and agent outputs already inclu
 
 ## Build Order (Chronological)
 
-1. Initialize Next.js project, Tailwind CSS, dependencies
-2. Connect to Vercel; provision Vercel Blob and Vercel KV; set env vars
-3. Define all Zod schemas (`lib/schema/`)
-4. Implement storage adapter and Vercel Blob + KV implementations (`lib/storage/`)
-5. Implement Gemini 3.1 Pro client wrapper (`lib/llm/gemini.ts`)
-6. Implement Nano Banana Pro client wrapper (`lib/llm/nano-banana.ts`)
-7. Implement Router Agent route — verify with manual POST test
-8. Implement Retrieval Agent route — verify with manual POST test using mock library data
-9. Implement Creative Director Agent route — verify CampaignPlan schema validation and retry logic
-10. Implement Image Generator Tool route — verify with a test prompt
-11. Implement Librarian Agent route — verify record persistence in KV
-12. Implement pipeline orchestration function + `POST /api/pipeline/generate` with SSE progress
-13. Build `/library` route (establishes upload and storage patterns used by `/generate`)
-14. Build `/generate` route (wires full pipeline, shows progress and results)
-15. Build `/gallery` route (read-only, simplest route)
-16. Apply `frontend-design` skill for visual polish across all three routes
-17. End-to-end test: upload a product image, generate a campaign, confirm it appears in `/gallery`
-18. Deploy to Vercel; verify all env vars are set; verify Blob and KV connectivity in production
+1. Initialize Next.js project, Tailwind CSS, dependencies ✓
+2. Connect to Vercel; deploy; set env vars ✓
+3. Create Supabase project; provision Storage buckets and DB tables; add env vars to Vercel
+4. Define all Zod schemas (`lib/schema/`)
+5. Implement storage adapter and Supabase implementation (`lib/storage/`)
+6. Implement Gemini 3.1 Pro client wrapper (`lib/llm/gemini.ts`)
+7. Implement Nano Banana Pro client wrapper (`lib/llm/nano-banana.ts`)
+8. Implement Router Agent route — verify with manual POST test
+9. Implement Retrieval Agent route — verify with manual POST test using mock library data
+10. Implement Creative Director Agent route — verify CampaignPlan schema validation and retry logic
+11. Implement Image Generator Tool route — verify with a test prompt
+12. Implement Librarian Agent route — verify record persistence in Supabase
+13. Implement pipeline orchestration function + `POST /api/pipeline/generate` with SSE progress
+14. Build `/library` route (establishes upload and storage patterns used by `/generate`)
+15. Build `/generate` route (wires full pipeline, shows progress and results)
+16. Build `/gallery` route (read-only, simplest route)
+17. Apply `frontend-design` skill for visual polish across all three routes
+18. End-to-end test: upload a product image, generate a campaign, confirm it appears in `/gallery`
+19. Deploy to Vercel; verify all env vars are set; verify Supabase connectivity in production
