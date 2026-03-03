@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 
-const GEMINI_MODEL = "gemini-3.1-pro";
+const GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 function getClient() {
   const key = process.env.GEMINI_API_KEY;

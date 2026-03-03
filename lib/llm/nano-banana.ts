@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const NANO_BANANA_MODEL = "nano-banana-pro";
+const NANO_BANANA_MODEL = "gemini-3-pro-image-preview";
 
 function getClient() {
   const key = process.env.GEMINI_API_KEY;
