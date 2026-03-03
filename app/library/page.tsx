@@ -33,18 +33,32 @@ export default function LibraryPage() {
   const [ads, setAds] = useState<HistoricalAd[]>([]);
   const [filterTag, setFilterTag] = useState<FilterTag>("all");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedAd, setExpandedAd] = useState<HistoricalAd | null>(null);
   const [editTag, setEditTag] = useState<Tag | null>(null);
   const [isSavingTag, setIsSavingTag] = useState(false);
 
   async function loadAds(tag?: Tag) {
     setIsLoading(true);
-    const url = tag ? `/api/library?tag=${tag}` : "/api/library";
-    const res = await fetch(url);
-    const { ads: data } = (await res.json()) as { ads: HistoricalAd[] };
-    setAds(data ?? []);
-    setIsLoading(false);
+    setLoadError(null);
+    try {
+      const url = tag ? `/api/library?tag=${tag}` : "/api/library";
+      const res = await fetch(url);
+      const json = (await res.json()) as { ads?: HistoricalAd[]; error?: unknown };
+      if (!res.ok || json.error) {
+        setLoadError(`Error loading ads: ${JSON.stringify(json.error)}`);
+        setAds([]);
+      } else {
+        setAds(json.ads ?? []);
+      }
+    } catch (err) {
+      setLoadError(String(err));
+      setAds([]);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -90,6 +104,9 @@ export default function LibraryPage() {
     const ready = pending.filter((f) => f.tag !== null);
     if (ready.length === 0) return;
     setIsUploading(true);
+    setUploadError(null);
+
+    const errors: string[] = [];
 
     for (const p of ready) {
       const fd = new FormData();
@@ -98,11 +115,24 @@ export default function LibraryPage() {
         "meta",
         JSON.stringify({ tag: p.tag, title: p.title || undefined })
       );
-      await fetch("/api/library/upload", { method: "POST", body: fd });
-      URL.revokeObjectURL(p.preview);
+      try {
+        const res = await fetch("/api/library/upload", { method: "POST", body: fd });
+        const json = await res.json() as { ad?: unknown; error?: unknown };
+        if (!res.ok || json.error) {
+          errors.push(`${p.file.name}: ${JSON.stringify(json.error)}`);
+        } else {
+          URL.revokeObjectURL(p.preview);
+        }
+      } catch (err) {
+        errors.push(`${p.file.name}: ${String(err)}`);
+      }
     }
 
-    setPending((prev) => prev.filter((f) => f.tag === null));
+    if (errors.length > 0) {
+      setUploadError(errors.join(" | "));
+    }
+
+    setPending((prev) => prev.filter((f) => f.tag === null || errors.some((e) => e.startsWith(f.file.name))));
     setIsUploading(false);
     loadAds(filterTag === "all" ? undefined : filterTag);
   }
@@ -247,6 +277,13 @@ export default function LibraryPage() {
                   </span>
                 )}
               </div>
+              {uploadError && (
+                <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "#1E1212", border: "1px solid #3A1E1E", borderRadius: "5px" }}>
+                  <p style={{ fontSize: "0.75rem", color: "var(--err)", margin: 0 }}>
+                    Upload error: {uploadError}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -305,6 +342,12 @@ export default function LibraryPage() {
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="skeleton" style={{ aspectRatio: "1", borderRadius: "5px" }} />
               ))}
+            </div>
+          ) : loadError ? (
+            <div style={{ padding: "2rem", background: "#1E1212", border: "1px solid #3A1E1E", borderRadius: "5px" }}>
+              <p style={{ fontSize: "0.75rem", color: "var(--err)", margin: 0 }}>
+                Error loading library: {loadError}
+              </p>
             </div>
           ) : filteredAds.length === 0 ? (
             <div style={{ textAlign: "center", padding: "4rem", color: "var(--ghost)" }}>
