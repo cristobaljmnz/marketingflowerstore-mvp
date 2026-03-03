@@ -127,8 +127,8 @@ export const supabaseStorage: StorageAdapter = {
     if (error)
       throw new Error(`getGeneratedCampaigns failed: ${error.message}`);
 
-    return (data ?? []).flatMap((row) => {
-      const result = GeneratedCampaignSchema.safeParse({
+    return (data ?? []).map((row) =>
+      GeneratedCampaignSchema.parse({
         id: row.id,
         productImageUrl: row.product_image_url,
         generatedImageUrls: row.generated_image_urls,
@@ -139,12 +139,7 @@ export const supabaseStorage: StorageAdapter = {
         hashtags: row.hashtags,
         referenceIds: row.reference_ids,
         createdAt: row.created_at,
-      });
-      if (!result.success) {
-        console.error(`[getGeneratedCampaigns] skipping row ${row.id}:`, result.error.flatten());
-        return [];
-      }
-      return [result.data];
-    });
+      })
+    );
   },
 };

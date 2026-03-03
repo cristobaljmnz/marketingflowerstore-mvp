@@ -14,8 +14,8 @@ export const CampaignPlanSchema = z.object({
   confidence: z.number().min(0).max(1),
   campaignTitle: z.string(),
   creativeIntent: z.enum(["promo", "emotional"]),
-  deliverables: z.array(z.string()),
-  imageBasePrompts: z.array(z.string()),
+  deliverables: z.array(z.string()).length(5),
+  imageBasePrompts: z.array(z.string()).length(5),
   textOverlays: z.array(TextOverlaySchema),
   captionOptions: z.array(z.string()),
   hashtags: z.array(z.string()),
@@ -25,7 +25,7 @@ export const CampaignPlanSchema = z.object({
     intent: z.enum(["promo", "emotional"]),
     date: z.string(),
     referenceIds: z.array(z.string()),
-    platformResolutions: z.array(z.string()).optional(),
+    platformResolutions: z.array(z.enum(SUPPORTED_RESOLUTIONS)).length(5),
   }),
 });
 
