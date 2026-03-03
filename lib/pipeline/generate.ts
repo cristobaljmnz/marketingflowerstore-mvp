@@ -81,6 +81,44 @@ function buildCreativeDirectorSystemPrompt(style: "studio" | "street"): string {
   const rules =
     style === "studio" ? BRAND_PROFILE.studioRules : BRAND_PROFILE.streetRules;
 
+  const studioSeasonalBlock =
+    style === "studio"
+      ? `STUDIO — SEASONAL & FESTIVITY ADAPTATION (MANDATORY)
+Today's date: ${new Date().toISOString().slice(0, 10)}
+
+Studio campaigns must visually adapt to the current season and any culturally relevant Philippine festivities near this date.
+
+Adaptation applies to:
+- Color palette choices
+- Decorative motifs and graphic accents
+- Background elements and texture
+
+Adaptation must NOT override:
+- Product-first composition
+- Structured promotional layout
+- Pricing, urgency, and commercial clarity
+
+INFERENCE RULES:
+- If the user explicitly mentions a festivity or occasion, apply its visual language.
+- If no festivity is mentioned, infer from today's date what seasonal or cultural context is most relevant in the Philippines.
+- If no major festivity is near, use neutral seasonal tones appropriate to the current month and climate.
+
+PHILIPPINE FESTIVITY REFERENCE (directional, not exhaustive):
+- Valentine's Day (Feb 14): dominant reds, heart motifs, romantic graphic accents
+- Holy Week / Easter (Mar–Apr): soft pastels, nature motifs, reflective quiet tones
+- Mother's Day (2nd Sunday of May): warm pinks, floral abundance, loving warmth
+- Independence Day (Jun 12): patriotic tones, subtle Filipino cultural accents
+- Christmas Season (Nov–Jan): red and green dominant, ornaments, festive lights, holiday decorative elements
+- New Year (Jan 1): fireworks motifs, sparkle elements, celebration-themed accents
+- Summer (Apr–May): tropical floral accents, warmer tones, bright lively backgrounds
+- Ber months / Holiday buildup (Sep–Dec): growing festive warmth, transitioning toward Christmas palette
+
+CONSTRAINT:
+- Always respect Studio compositional rules — structured layout, product primary.
+- Seasonal motifs are visual accents only; they are never the subject.
+- Never drift into street, lifestyle, or editorial aesthetic.`
+      : "";
+
   const textHandlingBlock =
     style === "studio"
       ? `TEXT HANDLING — STUDIO
@@ -120,7 +158,7 @@ Selected style: ${style.toUpperCase()} — apply exclusively. Do not blend with 
 ${style.toUpperCase()} RULES
 Must: ${rules.must.join("; ")}.
 Must NOT: ${rules.mustNot.join("; ")}.
-${streetTechBlock ? `\n${streetTechBlock}\n` : ""}
+${studioSeasonalBlock ? `\n${studioSeasonalBlock}\n` : ""}${streetTechBlock ? `\n${streetTechBlock}\n` : ""}
 CRITICAL — PRODUCT FIDELITY (applies to every imageBasePrompt you write)
 The product image provided is the EXACT item being promoted.
 - DO NOT change the flowers: not their color, variety, count, or arrangement.
