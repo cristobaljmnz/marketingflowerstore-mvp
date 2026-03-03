@@ -126,19 +126,36 @@ Key characteristics:
 - Clean, legible typography
 - No misspellings
 
-### 2) Street / Casual — “Selling the feeling”
-Purpose: Lifestyle, emotional, relatable content.
+### 2) Street / Casual — “Influencer Casual Mode”
+Purpose: Content that looks like an authentic Instagram post — taken casually with an iPhone, not professionally staged, not studio-shot, not DSLR-style.
 
-Key characteristics:
-- Real people
-- Real urban environments
-- Candid, unposed feel
-- Natural light
-- Optional short conversational text
-- No prices, discounts, CTAs
-- Looks like organic Instagram content
-- Clean, legible typography
-- No misspellings
+Visual characteristics (mandatory):
+- Shot as if taken with a recent iPhone
+- Natural lighting (daylight preferred) — no cinematic or artificial studio light
+- No professional bokeh or heavy background blur
+- Background must remain realistically visible
+- Slightly imperfect framing allowed
+- Human presence encouraged
+- Organic environment: home, street, café, park
+- Natural hand positioning
+- Slight perspective imperfections acceptable
+- No over-polished aesthetic
+
+Tone: A spontaneous moment. An influencer sharing something real. A relatable everyday scene. Not a brand campaign, magazine shoot, or cinematic production.
+
+What to avoid (strict):
+- No dramatic depth-of-field blur or creamy DSLR bokeh
+- No fashion editorial or magazine look
+- No ultra-symmetrical composition
+- No artificial gradient backgrounds
+- No high-end commercial photography aesthetic
+- No cinematic lighting
+- No prices, discounts, or CTAs
+- No promotional language
+
+Technical requirement for every image prompt:
+- Must include: “shot on iPhone”, “natural daylight”, “casual Instagram photo”, “realistic depth of field”, “no professional blur”, “authentic social media look”
+- Must exclude: “DSLR”, “cinematic”, “professional bokeh”, “studio lighting”
 
 These styles must **never** be mixed.
 
@@ -237,7 +254,37 @@ Outputs a **strict JSON campaign plan** including:
 Tool, not an agent.
 
 - Executes prompts from Creative Director
-- Model: **Nano Banana Pro**
+- Model: **`gemini-3-pro-image-preview`** (same `GEMINI_API_KEY`)
+
+### Mandatory Output Rules
+
+#### 1. Number of variants
+Every request must produce **exactly 5 image variants** — no more, no less.
+
+#### 2. Default resolution distribution (no platform specified)
+| Count | Resolution | Format |
+|---|---|---|
+| 3 | 1200×1200 | Facebook feed |
+| 1 | 1080×1350 | Instagram feed (portrait) |
+| 1 | 1080×1920 | Instagram story |
+
+These are the **only three supported resolutions**. Every generated image must use one of them.
+
+#### 3. Platform override (user specifies a platform)
+If the user explicitly mentions a platform (e.g. "Instagram story", "Facebook post"), all 5 variants must use the corresponding resolution. Formats must not be mixed unless the user explicitly requests multiple formats.
+
+#### 4. Studio style — text handling
+- If the user **explicitly requests text on image**: leave intentional negative space in the composition; reserve clear areas for typography; follow Creative Director overlay instructions.
+- If the user **does not mention text**: generate a mix — some variants with generous negative space, some with moderate space, some tightly product-focused. At least 2 of the 5 variants must clearly allow future text placement.
+
+#### 5. Street style — text handling
+- Do NOT create structured promotional layouts.
+- Text (if any) must feel organic and minimal.
+- No large reserved graphic space.
+- Composition must feel natural and lifestyle-driven.
+
+#### 6. Product fidelity (all styles)
+A mandatory prefix is prepended to every image prompt at generation time. It instructs the model to reproduce flower colors, wrapping, textures, and arrangement exactly as shown in the reference photo. Environmental enhancements (soft bokeh, premium lighting) are permitted; product alterations are not.
 
 ---
 

@@ -111,12 +111,21 @@ Output of the Creative Director Agent. This is the contract between the planning
 | `confidence` | `number` (0.0–1.0) | Inherited from Router Agent |
 | `campaignTitle` | `string` | Human-readable campaign name |
 | `creativeIntent` | `"promo" \| "emotional"` | Drives copy and image tone |
-| `deliverables` | `string[]` | Descriptor per deliverable (e.g., "Feed post — product hero") |
-| `imageBasePrompts` | `string[]` | One image generation prompt per deliverable |
+| `deliverables` | `string[]` | **Exactly 5 items.** Descriptor per deliverable, including resolution (e.g., "Facebook feed — 1200×1200 — product hero") |
+| `imageBasePrompts` | `string[]` | **Exactly 5 items**, one per deliverable. Each prompt must include the target resolution |
 | `textOverlays` | `Array<{ text, position, style }>` | Structured overlay specs (MVP: baked in; future: rendered separately) |
 | `captionOptions` | `string[]` | 3 caption variants |
 | `hashtags` | `string[]` | Relevant hashtags |
-| `metadata` | `{ product, style, intent, date, referenceIds[] }` | Traceability |
+| `metadata` | `{ product, style, intent, date, referenceIds[], platformResolutions[] }` | Traceability. `platformResolutions` lists the 5 resolutions used in order |
+
+**Canonical supported resolutions:** `1200x1200` · `1080x1350` · `1080x1920`
+
+**Default distribution (no platform specified by user):**
+- 3× `1200x1200` (Facebook feed)
+- 1× `1080x1350` (Instagram feed portrait)
+- 1× `1080x1920` (Instagram story)
+
+**Platform override:** if the user specifies a platform, all 5 variants use the corresponding resolution.
 
 ### 1.3 GeneratedCampaign
 
@@ -294,8 +303,10 @@ Each route:
 - Tone: warm, aspirational, Filipino-market-aware
 - Studio rules — must: product-forward, graphic/pastel backgrounds, structured layouts, promotional messaging, prices, urgency, clean typography, no misspellings
 - Studio rules — must not: real people, outdoor environments, lifestyle shots, emotional framing, organic aesthetic
-- Street rules — must: real people, real urban environments, candid/unposed feel, natural light, conversational optional text, clean typography, no misspellings
-- Street rules — must not: prices, discounts, CTAs, promotional language, studio backdrops, posed product shots
+- Street rules — must: shot as if on a recent iPhone; natural daylight; slightly imperfect framing; human presence; organic environment (home, street, café, park); natural hand positioning; realistic depth of field; authentic social media aesthetic; conversational optional text; clean typography, no misspellings
+- Street rules — must not: dramatic depth-of-field blur or DSLR bokeh; fashion editorial or magazine look; ultra-symmetrical composition; artificial gradient backgrounds; high-end commercial photography aesthetic; cinematic lighting; prices, discounts, CTAs; promotional language; studio backdrops
+- Every street imageBasePrompt MUST include the phrases: "shot on iPhone", "natural daylight", "casual Instagram photo", "realistic depth of field", "no professional blur", "authentic social media look"
+- Every street imageBasePrompt MUST NOT reference: "DSLR", "cinematic", "professional bokeh", "studio lighting"
 
 **Logic:**
 - Call Gemini 3.1 Pro with a detailed system prompt that encodes:
@@ -308,6 +319,17 @@ Each route:
 - Validate output against the CampaignPlan Zod schema
 - On validation failure: retry up to 2 times with the error appended to the prompt
 - On 3rd failure: return a 422 error with the raw output for debugging
+- **Timeout cascade:** try `gemini-3.1-pro-preview` at 120 s; on timeout fall back to `gemini-3-flash-preview` at 60 s
+
+**Image generation constraints the Creative Director must satisfy:**
+- `deliverables` and `imageBasePrompts` must always contain **exactly 5 items**.
+- Each prompt must include the target resolution (`1200x1200`, `1080x1350`, or `1080x1920`).
+- Default distribution when no platform is specified: 3× `1200x1200`, 1× `1080x1350`, 1× `1080x1920`.
+- If the user specifies a platform, all 5 prompts use the matching resolution.
+- **Studio style — text handling:**
+  - User requests text on image → leave intentional negative space; reserve clear typography areas.
+  - User does not mention text → mix of space levels; at least 2 of 5 variants must clearly allow future text placement.
+- **Street style — text handling:** no structured promotional layout; text (if any) is organic and minimal; no large reserved graphic space.
 
 **Output:** Full `CampaignPlan` JSON object (see Phase 1.2)
 
@@ -327,18 +349,22 @@ Each route:
 ```
 
 **Logic:**
-- Call Nano Banana Pro (Gemini model, same `GEMINI_API_KEY`) with the prompt
-- Pass `productImageUrl` as a reference image where the API supports it
-- Return the generated image URL
+- Model: `gemini-3-pro-image-preview` (same `GEMINI_API_KEY`)
+- Product image is fetched and sent as **inline base64** alongside the text prompt
+- A hardcoded `FIDELITY_PREFIX` is prepended to every prompt at call time to enforce product fidelity (preserve flower colors, wrapping, textures, arrangement exactly as in reference; environmental enhancements permitted)
+- Model returns the image as **inline base64 data** (`inlineData`); the tool converts it to a `Buffer` and uploads to the `generated-campaigns` Supabase Storage bucket
+- Returns the resulting Supabase public URL (not a data URL)
 
 **Output:**
 ```
 {
-  imageUrl: string
+  imageUrl: string  // Supabase public URL
 }
 ```
 
-**MVP note:** Called once per `imageBasePrompt` in the CampaignPlan. Sequential calls; parallel execution is a post-MVP improvement.
+**Mandatory volume:** Always called **5 times** per pipeline run (once per `imageBasePrompt` in CampaignPlan). Sequential calls; parallel execution is a post-MVP improvement (Phase 8.4).
+
+**Resolution:** Each prompt already contains the target resolution string (e.g., `1200x1200`). The image model is expected to honour it.
 
 ---
 
@@ -386,9 +412,10 @@ Define a single server-side pipeline function (`lib/pipeline/generate.ts`) that 
    - Receive `retrievedAds`
 5. **Creative Director Agent** — POST to `/api/agents/creative-director` with all context
    - Receive `campaignPlan`
-6. **Image Generator Tool** — for each `imageBasePrompt` in `campaignPlan.imageBasePrompts`:
-   - POST to `/api/tools/image-generator`
-   - Collect all `generatedImageUrls`
+6. **Image Generator Tool** — for each of the **exactly 5** `imageBasePrompts` in `campaignPlan.imageBasePrompts`:
+   - Call the image generator with the prompt (which includes resolution) + `productImageUrl`
+   - Each call: prepend `FIDELITY_PREFIX`, send product image as inline base64, upload result to Supabase
+   - Collect all 5 `generatedImageUrls`
 7. **Librarian Agent** — POST to `/api/agents/librarian` with full output
    - Receive `savedId`
 8. **Return** the full result set to the frontend
@@ -567,7 +594,9 @@ These features are deferred. The MVP data models and agent outputs already inclu
 ### Assumptions
 
 1. **~50 historical ads** is small enough that LLM-based semantic retrieval (no vector embeddings) is fast and accurate enough for MVP. This breaks down above ~200 ads.
-2. **Nano Banana Pro** is a Gemini model and uses the same `GEMINI_API_KEY` — no separate API credential needed.
+2. **Image generation model (`gemini-3-pro-image-preview`)** uses the same `GEMINI_API_KEY` — no separate credential needed. Originally referred to as "Nano Banana Pro" in early planning.
+3. **Exactly 5 image variants per request** is the fixed output contract. The Creative Director is responsible for always producing 5 `imageBasePrompts`. The pipeline validates this count before proceeding.
+4. **Resolution is specified inside the prompt string** passed to the image model. The model is expected to honour it; no separate API parameter for resolution exists in the current Gemini image generation API.
 3. **Supabase** free tier is sufficient for MVP-scale storage and database usage.
 4. **Brand profile is hardcoded** for MVP. flowerstore.ph's creative rules are defined as constants in the Creative Director system prompt, not in a database. This is intentional — brand rules change rarely and keeping them in code ensures they are always applied.
 5. **No authentication** is needed for the prototype. The tool is internal and single-tenant.
