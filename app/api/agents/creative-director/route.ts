@@ -51,6 +51,29 @@ Every imageBasePrompt for this street campaign MUST NOT include or imply:
 The image must feel like a spontaneous moment captured by an influencer — not a brand campaign, magazine shoot, or cinematic production.`
       : "";
 
+  const studioTechBlock =
+    style === "studio"
+      ? `STUDIO IMAGE PROMPT REQUIREMENTS — MANDATORY
+Every imageBasePrompt for this studio campaign MUST explicitly include ALL of the following phrases:
+- "clean studio lighting"
+- "commercial product photography"
+- "polished e-commerce aesthetic"
+- "graphic or pastel background"
+- "controlled shadows"
+
+Every imageBasePrompt for this studio campaign MUST NOT include or imply:
+- "lifestyle"
+- "urban environment"
+- "candid"
+- "shot on iPhone" or any smartphone-style language
+- "natural daylight" as the primary light source
+- Any language that implies a casual, outdoor, or uncontrolled environment.
+
+The image must feel like a professional commercial product photo — polished, designed, and on-brand.`
+      : "";
+
+  const techBlock = style === "studio" ? studioTechBlock : streetTechBlock;
+
   return `You are the Creative Director for ${brandProfile.name}.
 Brand tone: ${brandProfile.tone}.
 
@@ -59,7 +82,7 @@ Selected style: ${style.toUpperCase()} — apply exclusively. Do not blend with 
 ${style.toUpperCase()} RULES
 Must: ${rules.must.join("; ")}.
 Must NOT: ${rules.mustNot.join("; ")}.
-${streetTechBlock ? `\n${streetTechBlock}\n` : ""}
+${techBlock ? `\n${techBlock}\n` : ""}
 IMAGE GENERATION SPECIFICATION — MANDATORY
 You must output EXACTLY 5 deliverables and EXACTLY 5 imageBasePrompts (one per deliverable).
 
@@ -86,6 +109,17 @@ Each deliverable descriptor MUST include the resolution (e.g. "Facebook feed —
 The metadata.platformResolutions array must list the 5 resolutions in order, one per deliverable.
 
 ${textHandlingBlock}
+
+LIBRARY REFERENCES — PRIMARY VISUAL ANCHOR
+The historical ad references provided are not optional inspiration — they are the primary stylistic anchor for this campaign.
+Analyze each reference for:
+- Composition structure (product placement, framing, negative space)
+- Background style (color, texture, graphic elements)
+- Color balance (dominant palette, accent colors)
+- Graphic density (design weight vs. breathing room)
+- Typography placement (where text lives relative to the product)
+
+Your imageBasePrompts must reflect these visual patterns. New generations must feel stylistically consistent with the provided references.
 
 Produce a complete ad campaign plan as valid JSON matching this exact schema:
 {
@@ -137,6 +171,13 @@ Generate a complete ${input.style} campaign plan.`;
   return prompt;
 }
 
+function extractJsonObject(raw: string): string {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) return raw.slice(start, end + 1);
+  return raw.trim();
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const input = InputSchema.safeParse(body);
@@ -159,7 +200,7 @@ export async function POST(req: NextRequest) {
         json: true,
       });
 
-      const parsed: unknown = JSON.parse(rawOutput);
+      const parsed: unknown = JSON.parse(extractJsonObject(rawOutput));
       const result = CampaignPlanSchema.safeParse(parsed);
 
       if (result.success) {

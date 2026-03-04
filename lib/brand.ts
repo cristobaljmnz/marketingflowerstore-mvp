@@ -25,12 +25,15 @@ export const BRAND_PROFILE: BrandProfile = {
       "structured, grid-based layouts",
       "promotional messaging with prices and urgency",
       "clean, legible typography with no misspellings",
+      "polished e-commerce aesthetic consistent with FlowerStore visual identity",
+      "color palettes consistent with FlowerStore brand campaigns",
     ],
     mustNot: [
       "outdoor or urban environments",
       "lifestyle or candid shots",
       "emotional or narrative framing",
       "organic, raw, or unpolished aesthetic",
+      "colors that strongly deviate from the brand palette",
     ],
   },
   streetRules: {
