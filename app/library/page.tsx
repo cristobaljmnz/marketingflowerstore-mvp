@@ -39,6 +39,7 @@ export default function LibraryPage() {
   const [expandedAd, setExpandedAd]   = useState<HistoricalAd | null>(null);
   const [editTag, setEditTag]         = useState<Tag | null>(null);
   const [isSavingTag, setIsSavingTag] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const pageRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -350,6 +351,37 @@ export default function LibraryPage() {
         </section>
       </div>
 
+      {/* ── Image lightbox ── */}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.92)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 500,
+            padding: "1.5rem",
+            cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={lightboxUrl}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              borderRadius: "4px",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+              cursor: "default",
+            }}
+          />
+        </div>
+      )}
+
       {/* ── Expanded modal ── */}
       {expandedAd && (
         <div
@@ -384,7 +416,8 @@ export default function LibraryPage() {
             <img
               src={expandedAd.imageUrl}
               alt={expandedAd.title ?? "Historical ad"}
-              style={{ width: "100%", display: "block", aspectRatio: "1", objectFit: "cover" }}
+              onClick={() => setLightboxUrl(expandedAd.imageUrl)}
+              style={{ width: "100%", display: "block", aspectRatio: "1", objectFit: "cover", cursor: "zoom-in" }}
             />
             <div style={{ padding: "1.75rem" }}>
               <p className="display" style={{ fontSize: "1.4rem", fontWeight: 400, fontStyle: "italic", marginBottom: "1.25rem", color: "var(--cream)" }}>

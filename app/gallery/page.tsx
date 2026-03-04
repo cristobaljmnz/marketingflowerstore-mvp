@@ -177,10 +177,12 @@ function ImageCarousel({
   urls,
   aspectRatio = "1",
   compact = false,
+  onImageClick,
 }: {
   urls: string[];
   aspectRatio?: string;
   compact?: boolean;
+  onImageClick?: (url: string) => void;
 }) {
   const [idx, setIdx] = useState(0);
   const len = urls.length;
@@ -212,12 +214,14 @@ function ImageCarousel({
           key={idx}
           src={urls[idx]}
           alt={`Image ${idx + 1}`}
+          onClick={onImageClick ? (e) => { e.stopPropagation(); onImageClick(urls[idx]); } : undefined}
           style={{
             width: "100%",
             aspectRatio,
             objectFit: "cover",
             display: "block",
             animation: "fadeUp 0.25s ease both",
+            cursor: onImageClick ? "zoom-in" : undefined,
           }}
         />
 
@@ -448,7 +452,10 @@ function CampaignCard({ campaign, onClick }: { campaign: GeneratedCampaign; onCl
 // ── Campaign modal ────────────────────────────────────────────────────────────
 
 function CampaignModal({ campaign, onClose }: { campaign: GeneratedCampaign; onClose: () => void }) {
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   return (
+    <>
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
     <div
       onClick={onClose}
       style={{
@@ -481,7 +488,7 @@ function CampaignModal({ campaign, onClose }: { campaign: GeneratedCampaign; onC
         }}
       >
         {/* Carousel in modal */}
-        <ImageCarousel urls={campaign.generatedImageUrls} aspectRatio="1" />
+        <ImageCarousel urls={campaign.generatedImageUrls} aspectRatio="1" onImageClick={(url) => setLightboxUrl(url)} />
 
         <div style={{ padding: "2rem" }}>
           {/* Title + badges */}
@@ -588,6 +595,39 @@ function CampaignModal({ campaign, onClose }: { campaign: GeneratedCampaign; onC
           </button>
         </div>
       </div>
+    </div>
+    </>
+  );
+}
+
+function ImageLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.92)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 500,
+        padding: "1.5rem",
+        cursor: "zoom-out",
+      }}
+    >
+      <img
+        src={url}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          objectFit: "contain",
+          borderRadius: "4px",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+          cursor: "default",
+        }}
+      />
     </div>
   );
 }

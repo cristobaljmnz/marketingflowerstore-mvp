@@ -627,38 +627,42 @@ function VariantCard({
   captionIdx: number;
   onCaptionNext: () => void;
 }) {
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const colCount = Math.min(variant.generatedImageUrls.length, 3);
 
   return (
-    <div
-      data-card
-      style={{
-        background: "var(--card)",
-        borderRadius: "var(--r-md)",
-        overflow: "hidden",
-        border: "1px solid var(--rim)",
-        boxShadow: "0 4px 24px rgba(226,83,73,0.05)",
-      }}
-    >
-      {variant.generatedImageUrls.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${colCount}, 1fr)`,
-            gap: "2px",
-            background: "var(--rim)",
-          }}
-        >
-          {variant.generatedImageUrls.map((url, j) => (
-            <img
-              key={j}
-              src={url}
-              alt={variant.campaignPlan.deliverables?.[j] ?? `Ad ${j + 1}`}
-              style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
-            />
-          ))}
-        </div>
-      )}
+    <>
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+      <div
+        data-card
+        style={{
+          background: "var(--card)",
+          borderRadius: "var(--r-md)",
+          overflow: "hidden",
+          border: "1px solid var(--rim)",
+          boxShadow: "0 4px 24px rgba(226,83,73,0.05)",
+        }}
+      >
+        {variant.generatedImageUrls.length > 0 && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+              gap: "2px",
+              background: "var(--rim)",
+            }}
+          >
+            {variant.generatedImageUrls.map((url, j) => (
+              <img
+                key={j}
+                src={url}
+                alt={variant.campaignPlan.deliverables?.[j] ?? `Ad ${j + 1}`}
+                onClick={() => setLightboxUrl(url)}
+                style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block", cursor: "zoom-in" }}
+              />
+            ))}
+          </div>
+        )}
 
       <div style={{ padding: "1.75rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", marginBottom: "1.25rem" }}>
@@ -729,6 +733,39 @@ function VariantCard({
           View in gallery →
         </Link>
       </div>
+    </div>
+    </>
+  );
+}
+
+function ImageLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.92)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 500,
+        padding: "1.5rem",
+        cursor: "zoom-out",
+      }}
+    >
+      <img
+        src={url}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          objectFit: "contain",
+          borderRadius: "4px",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+          cursor: "default",
+        }}
+      />
     </div>
   );
 }
