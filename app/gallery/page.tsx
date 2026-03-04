@@ -165,7 +165,11 @@ export default function GalleryPage() {
 
       {/* ── Modal ── */}
       {selected && (
-        <CampaignModal campaign={selected} onClose={() => setSelected(null)} />
+        <CampaignModal
+          campaign={selected}
+          onClose={() => setSelected(null)}
+          onDeleted={() => { setSelected(null); loadCampaigns(); }}
+        />
       )}
     </div>
   );
@@ -451,8 +455,17 @@ function CampaignCard({ campaign, onClick }: { campaign: GeneratedCampaign; onCl
 
 // ── Campaign modal ────────────────────────────────────────────────────────────
 
-function CampaignModal({ campaign, onClose }: { campaign: GeneratedCampaign; onClose: () => void }) {
+function CampaignModal({ campaign, onClose, onDeleted }: { campaign: GeneratedCampaign; onClose: () => void; onDeleted: () => void }) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function deleteCampaign() {
+    setIsDeleting(true);
+    await fetch(`/api/gallery/${campaign.id}`, { method: "DELETE" });
+    setIsDeleting(false);
+    onDeleted();
+  }
   return (
     <>
       {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
@@ -576,23 +589,81 @@ function CampaignModal({ campaign, onClose }: { campaign: GeneratedCampaign; onC
             Generated {new Date(campaign.createdAt).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
           </p>
 
-          {/* Close */}
-          <button
-            onClick={onClose}
-            className="btn"
-            style={{
-              padding: "0.65rem 1.5rem",
-              background: "transparent",
-              color: "var(--faint)",
-              border: "1px solid var(--rim2)",
-              borderRadius: "var(--r-md)",
-              fontSize: "0.82rem",
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              cursor: "pointer",
-            }}
-          >
-            Close
-          </button>
+          {/* Close + Delete */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button
+              onClick={onClose}
+              className="btn"
+              style={{
+                padding: "0.65rem 1.5rem",
+                background: "transparent",
+                color: "var(--faint)",
+                border: "1px solid var(--rim2)",
+                borderRadius: "var(--r-md)",
+                fontSize: "0.82rem",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+
+            {confirmDelete ? (
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <span style={{ fontSize: "0.72rem", color: "var(--faint)", fontFamily: "'Outfit', sans-serif" }}>
+                  Delete this campaign?
+                </span>
+                <button
+                  onClick={deleteCampaign}
+                  disabled={isDeleting}
+                  style={{
+                    padding: "0.45rem 0.875rem",
+                    background: "#C04040",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "var(--r-md)",
+                    fontSize: "0.75rem",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {isDeleting ? "Deleting…" : "Confirm"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    padding: "0.45rem 0.875rem",
+                    background: "transparent",
+                    color: "var(--faint)",
+                    border: "1px solid var(--rim2)",
+                    borderRadius: "var(--r-md)",
+                    fontSize: "0.75rem",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    cursor: "pointer",
+                  }}
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{
+                  padding: "0.45rem 0.875rem",
+                  background: "transparent",
+                  color: "#C04040",
+                  border: "1px solid rgba(192,64,64,0.3)",
+                  borderRadius: "var(--r-md)",
+                  fontSize: "0.75rem",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

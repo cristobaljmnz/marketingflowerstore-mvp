@@ -96,6 +96,15 @@ export const supabaseStorage: StorageAdapter = {
       throw new Error(`updateHistoricalAdTag failed: ${error.message}`);
   },
 
+  async deleteHistoricalAd(id) {
+    const supabase = getClient();
+    const { error } = await supabase
+      .from("historical_ads")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(`deleteHistoricalAd failed: ${error.message}`);
+  },
+
   async saveGeneratedCampaign(campaign) {
     const supabase = getClient();
     const { error } = await supabase.from("generated_campaigns").insert({
@@ -112,6 +121,16 @@ export const supabaseStorage: StorageAdapter = {
     });
     if (error)
       throw new Error(`saveGeneratedCampaign failed: ${error.message}`);
+  },
+
+  async deleteGeneratedCampaign(id) {
+    const supabase = getClient();
+    const { error } = await supabase
+      .from("generated_campaigns")
+      .delete()
+      .eq("id", id);
+    if (error)
+      throw new Error(`deleteGeneratedCampaign failed: ${error.message}`);
   },
 
   async getGeneratedCampaigns(filters) {

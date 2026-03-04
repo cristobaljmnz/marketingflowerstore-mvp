@@ -13,6 +13,7 @@ export interface StorageAdapter {
   saveHistoricalAd(ad: HistoricalAd): Promise<void>;
   getHistoricalAds(tag?: "studio" | "street"): Promise<HistoricalAd[]>;
   updateHistoricalAdTag(id: string, tag: "studio" | "street"): Promise<void>;
+  deleteHistoricalAd(id: string): Promise<void>;
 
   // Generated campaigns
   saveGeneratedCampaign(campaign: GeneratedCampaign): Promise<void>;
@@ -20,4 +21,5 @@ export interface StorageAdapter {
     style?: "studio" | "street";
     intent?: "promo" | "emotional";
   }): Promise<GeneratedCampaign[]>;
+  deleteGeneratedCampaign(id: string): Promise<void>;
 }

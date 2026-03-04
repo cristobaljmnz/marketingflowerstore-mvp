@@ -39,6 +39,8 @@ export default function LibraryPage() {
   const [expandedAd, setExpandedAd]   = useState<HistoricalAd | null>(null);
   const [editTag, setEditTag]         = useState<Tag | null>(null);
   const [isSavingTag, setIsSavingTag] = useState(false);
+  const [isDeleting, setIsDeleting]   = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const pageRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,17 @@ export default function LibraryPage() {
   function openAd(ad: HistoricalAd) {
     setExpandedAd(ad);
     setEditTag(ad.tag);
+    setConfirmDelete(false);
+  }
+
+  async function deleteAd() {
+    if (!expandedAd) return;
+    setIsDeleting(true);
+    await fetch(`/api/library/${expandedAd.id}`, { method: "DELETE" });
+    setIsDeleting(false);
+    setExpandedAd(null);
+    setConfirmDelete(false);
+    loadAds(filterTag === "all" ? undefined : filterTag);
   }
 
   async function saveTag() {
@@ -451,41 +464,99 @@ export default function LibraryPage() {
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <button
-                  onClick={saveTag}
-                  disabled={isSavingTag}
-                  className="btn"
-                  style={{
-                    padding: "0.65rem 1.375rem",
-                    background: "var(--brand)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "var(--r-md)",
-                    fontSize: "0.82rem",
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontWeight: 600,
-                    boxShadow: "0 2px 12px rgba(226,83,73,0.25)",
-                  }}
-                >
-                  <span className="btn-slide" style={{ background: "var(--brand-l)" }} />
-                  <span style={{ position: "relative", zIndex: 1 }}>{isSavingTag ? "Saving…" : "Save"}</span>
-                </button>
-                <button
-                  onClick={() => setExpandedAd(null)}
-                  className="btn"
-                  style={{
-                    padding: "0.65rem 1.375rem",
-                    background: "transparent",
-                    color: "var(--faint)",
-                    border: "1px solid var(--rim2)",
-                    borderRadius: "var(--r-md)",
-                    fontSize: "0.82rem",
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  }}
-                >
-                  Cancel
-                </button>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <button
+                    onClick={saveTag}
+                    disabled={isSavingTag}
+                    className="btn"
+                    style={{
+                      padding: "0.65rem 1.375rem",
+                      background: "var(--brand)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "var(--r-md)",
+                      fontSize: "0.82rem",
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      fontWeight: 600,
+                      boxShadow: "0 2px 12px rgba(226,83,73,0.25)",
+                    }}
+                  >
+                    <span className="btn-slide" style={{ background: "var(--brand-l)" }} />
+                    <span style={{ position: "relative", zIndex: 1 }}>{isSavingTag ? "Saving…" : "Save"}</span>
+                  </button>
+                  <button
+                    onClick={() => { setExpandedAd(null); setConfirmDelete(false); }}
+                    className="btn"
+                    style={{
+                      padding: "0.65rem 1.375rem",
+                      background: "transparent",
+                      color: "var(--faint)",
+                      border: "1px solid var(--rim2)",
+                      borderRadius: "var(--r-md)",
+                      fontSize: "0.82rem",
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {confirmDelete ? (
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--faint)", fontFamily: "'Outfit', sans-serif" }}>
+                      Delete this ad?
+                    </span>
+                    <button
+                      onClick={deleteAd}
+                      disabled={isDeleting}
+                      style={{
+                        padding: "0.45rem 0.875rem",
+                        background: "#C04040",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "var(--r-md)",
+                        fontSize: "0.75rem",
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isDeleting ? "Deleting…" : "Confirm"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      style={{
+                        padding: "0.45rem 0.875rem",
+                        background: "transparent",
+                        color: "var(--faint)",
+                        border: "1px solid var(--rim2)",
+                        borderRadius: "var(--r-md)",
+                        fontSize: "0.75rem",
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        cursor: "pointer",
+                      }}
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    style={{
+                      padding: "0.45rem 0.875rem",
+                      background: "transparent",
+                      color: "#C04040",
+                      border: "1px solid rgba(192,64,64,0.3)",
+                      borderRadius: "var(--r-md)",
+                      fontSize: "0.75rem",
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           </div>
