@@ -628,11 +628,13 @@ function VariantCard({
   onCaptionNext: () => void;
 }) {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const openLightbox = (url: string) => { setLightboxUrl(url); window.dispatchEvent(new Event("lightbox-open")); };
+  const closeLightbox = () => { setLightboxUrl(null); window.dispatchEvent(new Event("lightbox-close")); };
   const colCount = Math.min(variant.generatedImageUrls.length, 3);
 
   return (
     <>
-      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={closeLightbox} />}
       <div
         data-card
         style={{
@@ -657,7 +659,7 @@ function VariantCard({
                 key={j}
                 src={url}
                 alt={variant.campaignPlan.deliverables?.[j] ?? `Ad ${j + 1}`}
-                onClick={() => setLightboxUrl(url)}
+                onClick={() => openLightbox(url)}
                 style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block", cursor: "zoom-in" }}
               />
             ))}

@@ -14,12 +14,24 @@ const NAV_LINKS = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const open = () => setLightboxOpen(true);
+    const close = () => setLightboxOpen(false);
+    window.addEventListener("lightbox-open", open);
+    window.addEventListener("lightbox-close", close);
+    return () => {
+      window.removeEventListener("lightbox-open", open);
+      window.removeEventListener("lightbox-close", close);
+    };
   }, []);
 
   return (
@@ -42,6 +54,8 @@ export default function Navbar() {
         border: `1px solid ${scrolled ? "rgba(226,83,73,0.14)" : "transparent"}`,
         boxShadow: scrolled ? "0 4px 32px rgba(226,83,73,0.07), 0 1px 0 rgba(255,255,255,0.6) inset" : "none",
         transition: "all 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        opacity: lightboxOpen ? 0 : 1,
+        pointerEvents: lightboxOpen ? "none" : "auto",
       }}
     >
       {/* ── Logo + title ── */}

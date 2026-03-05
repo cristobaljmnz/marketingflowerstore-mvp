@@ -42,6 +42,8 @@ export default function LibraryPage() {
   const [isDeleting, setIsDeleting]   = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const openLightbox = (url: string) => { setLightboxUrl(url); window.dispatchEvent(new Event("lightbox-open")); };
+  const closeLightbox = () => { setLightboxUrl(null); window.dispatchEvent(new Event("lightbox-close")); };
 
   const pageRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -367,7 +369,7 @@ export default function LibraryPage() {
       {/* ── Image lightbox ── */}
       {lightboxUrl && (
         <div
-          onClick={() => setLightboxUrl(null)}
+          onClick={closeLightbox}
           style={{
             position: "fixed",
             inset: 0,
@@ -429,7 +431,7 @@ export default function LibraryPage() {
             <img
               src={expandedAd.imageUrl}
               alt={expandedAd.title ?? "Historical ad"}
-              onClick={() => setLightboxUrl(expandedAd.imageUrl)}
+              onClick={() => openLightbox(expandedAd.imageUrl)}
               style={{ width: "100%", display: "block", aspectRatio: "1", objectFit: "cover", cursor: "zoom-in" }}
             />
             <div style={{ padding: "1.75rem" }}>

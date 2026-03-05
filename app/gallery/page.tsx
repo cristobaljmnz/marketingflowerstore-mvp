@@ -459,6 +459,8 @@ function CampaignModal({ campaign, onClose, onDeleted }: { campaign: GeneratedCa
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const openLightbox = (url: string) => { setLightboxUrl(url); window.dispatchEvent(new Event("lightbox-open")); };
+  const closeLightbox = () => { setLightboxUrl(null); window.dispatchEvent(new Event("lightbox-close")); };
 
   async function deleteCampaign() {
     setIsDeleting(true);
@@ -468,7 +470,7 @@ function CampaignModal({ campaign, onClose, onDeleted }: { campaign: GeneratedCa
   }
   return (
     <>
-      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+      {lightboxUrl && <ImageLightbox url={lightboxUrl} onClose={closeLightbox} />}
     <div
       onClick={onClose}
       style={{
@@ -501,7 +503,7 @@ function CampaignModal({ campaign, onClose, onDeleted }: { campaign: GeneratedCa
         }}
       >
         {/* Carousel in modal */}
-        <ImageCarousel urls={campaign.generatedImageUrls} aspectRatio="1" onImageClick={(url) => setLightboxUrl(url)} />
+        <ImageCarousel urls={campaign.generatedImageUrls} aspectRatio="1" onImageClick={openLightbox} />
 
         <div style={{ padding: "2rem" }}>
           {/* Title + badges */}
