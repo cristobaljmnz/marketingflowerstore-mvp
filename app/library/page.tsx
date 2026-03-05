@@ -166,6 +166,12 @@ export default function LibraryPage() {
     setExpandedAd(ad);
     setEditTag(ad.tag);
     setConfirmDelete(false);
+    window.dispatchEvent(new Event("lightbox-open"));
+  }
+
+  function closeAd() {
+    setExpandedAd(null);
+    window.dispatchEvent(new Event("lightbox-close"));
   }
 
   async function deleteAd() {
@@ -173,13 +179,13 @@ export default function LibraryPage() {
     setIsDeleting(true);
     await fetch(`/api/library/${expandedAd.id}`, { method: "DELETE" });
     setIsDeleting(false);
-    setExpandedAd(null);
+    closeAd();
     setConfirmDelete(false);
     loadAds(filterTag === "all" ? undefined : filterTag);
   }
 
   async function saveTag() {
-    if (!expandedAd || !editTag || editTag === expandedAd.tag) { setExpandedAd(null); return; }
+    if (!expandedAd || !editTag || editTag === expandedAd.tag) { closeAd(); return; }
     setIsSavingTag(true);
     await fetch(`/api/library/${expandedAd.id}`, {
       method: "PATCH",
@@ -187,7 +193,7 @@ export default function LibraryPage() {
       body: JSON.stringify({ tag: editTag }),
     });
     setIsSavingTag(false);
-    setExpandedAd(null);
+    closeAd();
     loadAds(filterTag === "all" ? undefined : filterTag);
   }
 
@@ -400,7 +406,7 @@ export default function LibraryPage() {
       {/* ── Expanded modal ── */}
       {expandedAd && (
         <div
-          onClick={() => setExpandedAd(null)}
+          onClick={closeAd}
           style={{
             position: "fixed",
             inset: 0,
@@ -488,7 +494,7 @@ export default function LibraryPage() {
                     <span style={{ position: "relative", zIndex: 1 }}>{isSavingTag ? "Saving…" : "Save"}</span>
                   </button>
                   <button
-                    onClick={() => { setExpandedAd(null); setConfirmDelete(false); }}
+                    onClick={() => { closeAd(); setConfirmDelete(false); }}
                     className="btn"
                     style={{
                       padding: "0.65rem 1.375rem",

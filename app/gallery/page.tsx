@@ -157,7 +157,7 @@ export default function GalleryPage() {
             style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.25rem" }}
           >
             {campaigns.map((c) => (
-              <CampaignCard key={c.id} campaign={c} onClick={() => setSelected(c)} />
+              <CampaignCard key={c.id} campaign={c} onClick={() => { setSelected(c); window.dispatchEvent(new Event("lightbox-open")); }} />
             ))}
           </div>
         )}
@@ -167,8 +167,8 @@ export default function GalleryPage() {
       {selected && (
         <CampaignModal
           campaign={selected}
-          onClose={() => setSelected(null)}
-          onDeleted={() => { setSelected(null); loadCampaigns(); }}
+          onClose={() => { setSelected(null); window.dispatchEvent(new Event("lightbox-close")); }}
+          onDeleted={() => { setSelected(null); window.dispatchEvent(new Event("lightbox-close")); loadCampaigns(); }}
         />
       )}
     </div>
